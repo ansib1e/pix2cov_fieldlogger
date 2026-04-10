@@ -1,34 +1,22 @@
-# PixelVox Field Logger
+# Field Logger
 
-A single-file HTML webapp for logging camera positions, orientations, and
-landmarks during shoots. Works offline on any phone with a modern browser.
+Offline-capable webapp for logging GPS positions, orientations, and landmarks during camera shoots.
 
-## Host on GitHub Pages
+## Usage
 
-1. Push this folder to a public GitHub repo (e.g. `yourname/pixelvox-field-logger`)
-2. In repo Settings → Pages → Source → `main` branch, `/` root
-3. Visit `https://yourname.github.io/pixelvox-field-logger/`
-4. On your phone, add to home screen for offline access
+1. Open the site on your phone
+2. (Optional) Add to home screen for offline access
+3. Capture data on the three tabs: Position, Orientation, Landmarks
+4. Export from the Save & Share tab when done
 
-All data is stored in browser localStorage — nothing is uploaded anywhere.
-You export when you're done and transfer via AirDrop / email / etc.
+## Privacy
 
-## What it captures
+All data is stored in your browser's localStorage. Nothing is uploaded anywhere. Export and transfer files manually via the Share sheet (iOS/Android) or direct download.
 
-- **Positions** — averaged GPS for each camera tripod (lat/lon/alt with accuracy)
-- **Orientations** — snapshot of heading/pitch/roll from phone sensors (reference only, not precise)
-- **Landmarks** — catalog of known reference points for post-shoot calibration
+## Features
 
-## Export formats
-
-- **JSON** — everything combined, for archival
-- **Landmarks CSV** — the `name,lat,lon,alt` format expected by `landmark_calibrate.py`
-
-## Important notes
-
-- The compass heading reading is for **reference only**. Phone magnetometers are
-  inherently inaccurate (5-15° error). Use `landmark_calibrate.py` in post-shoot
-  to get precise orientation.
-- iOS requires explicit permission for orientation sensors. Tap "Request Permission"
-  on the Orientation tab before it will work.
-- GPS accuracy improves with time. Average for at least 2-5 minutes per position.
+- Averaged GPS position capture with accuracy reporting
+- Orientation snapshot (heading, pitch, roll)
+- Landmark catalog with lat/lon/alt
+- JSON and CSV export
+- Offline operation after first load
