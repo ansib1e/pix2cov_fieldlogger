@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PixelVox Field Logger</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #141a2b;
+    --border: #2a3450;
+    --text: #e8ecf4;
+    --muted: #7a8599;
+    --accent: #00ccff;
+    --accent2: #00ff88;
+    --warn: #ffaa00;
+    --err: #ff4466;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 12px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  h1 { margin: 0 0 4px 0; font-size: 1.4em; color: var(--accent); }
+  h2 { margin: 16px 0 6px 0; font-size: 1.05em; color: var(--accent2); }
+  h3 { margin: 12px 0 4px 0; font-size: 0.95em; color: var(--muted); }
+  .sub { color: var(--muted); font-size: 0.85em; margin-bottom: 10px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .row label { flex: 1; min-width: 80px; font-size: 0.85em; color: var(--muted); }
+  .row .val { flex: 2; font-family: monospace; font-size: 1.0em; word-break: break-all; }
+  .big-val { font-family: monospace; font-size: 1.8em; color: var(--accent); font-weight: bold; }
+  button, input, select, textarea {
+    background: #1c2338;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 1em;
+    width: 100%;
+  }
+  button {
+    background: var(--accent);
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: manipulation;
+    margin-top: 6px;
+  }
+  button:active { background: var(--accent2); }
+  button.secondary { background: #2a3450; color: var(--text); }
+  button.warn { background: var(--warn); color: #000; }
+  button.err { background: var(--err); color: #fff; }
+  .compass {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px 0;
+  }
+  .compass-dial {
+    width: 140px;
+    height: 140px;
+    border: 3px solid var(--accent);
+    border-radius: 50%;
+    position: relative;
+    background: radial-gradient(circle, #0f1625 0%, #05080f 100%);
+  }
+  .compass-dial .needle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to top, transparent, var(--accent));
+    transform-origin: bottom center;
+    margin-left: -1px;
+    margin-top: -60px;
+  }
+  .compass-dial .center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-left: -4px;
+    margin-top: -4px;
+  }
+  .compass-dial .label {
+    position: absolute;
+    color: var(--muted);
+    font-size: 0.8em;
+  }
+  .compass-dial .n { top: 4px; left: 50%; transform: translateX(-50%); color: var(--accent2); font-weight: bold; }
+  .compass-dial .e { right: 4px; top: 50%; transform: translateY(-50%); }
+  .compass-dial .s { bottom: 4px; left: 50%; transform: translateX(-50%); }
+  .compass-dial .w { left: 4px; top: 50%; transform: translateY(-50%); }
+  .status {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin: 6px 0;
+  }
+  .status.ok { background: rgba(0, 255, 136, 0.15); color: var(--accent2); border-left: 3px solid var(--accent2); }
+  .status.warn { background: rgba(255, 170, 0, 0.15); color: var(--warn); border-left: 3px solid var(--warn); }
+  .status.err { background: rgba(255, 68, 102, 0.15); color: var(--err); border-left: 3px solid var(--err); }
+  textarea { min-height: 120px; font-family: monospace; font-size: 0.85em; }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tab {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    font-weight: bold;
+    user-select: none;
+  }
+  .tab.active { color: var(--accent); border-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .landmark-entry {
+    background: #0f1525;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 6px;
+    font-family: monospace;
+    font-size: 0.8em;
+  }
+  .landmark-entry .name { color: var(--accent); font-weight: bold; }
+  details { margin: 6px 0; }
+  summary { cursor: pointer; color: var(--muted); font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>PixelVox Field Logger</h1>
+<div class="sub">Calibration metadata collection. Works offline after first load.</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="position">Position</div>
+  <div class="tab" data-tab="orientation">Orientation</div>
+  <div class="tab" data-tab="landmarks">Landmarks</div>
+  <div class="tab" data-tab="export">Export</div>
+</div>
+
+<!-- POSITION TAB -->
+<div class="tab-content active" id="tab-position">
+  <div class="panel">
+    <h2>GPS Position</h2>
+    <div class="sub">Stand still, hit "Start averaging", wait 2-5 min for best accuracy.</div>
+    <div id="gps-status" class="status warn">Waiting for GPS...</div>
+    <div class="row"><label>Lat</label><span class="val" id="gps-lat">—</span></div>
+    <div class="row"><label>Lon</label><span class="val" id="gps-lon">—</span></div>
+    <div class="row"><label>Alt (m)</label><span class="val" id="gps-alt">—</span></div>
+    <div class="row"><label>Accuracy (m)</label><span class="val" id="gps-acc">—</span></div>
+    <div class="row"><label>Samples</label><span class="val" id="gps-n">0</span></div>
+    <button id="gps-start">Start Averaging</button>
+    <button id="gps-stop" class="secondary">Stop & Save</button>
+    <h3>Saved Positions</h3>
+    <div id="saved-positions"></div>
+  </div>
+</div>
+
+<!-- ORIENTATION TAB -->
+<div class="tab-content" id="tab-orientation">
+  <div class="panel">
+    <h2>Live Orientation</h2>
+    <div class="sub">Heading is from magnetometer — not reliable. Use landmark calibration in post.<br>
+    Pitch/roll from gravity are accurate.</div>
+    <div id="orient-status" class="status warn">Tap "Request permission" on iOS</div>
+    <button id="orient-req">Request Permission (iOS)</button>
+    <div class="compass">
+      <div class="compass-dial">
+        <div class="n">N</div><div class="e">E</div><div class="s">S</div><div class="w">W</div>
+        <div class="needle" id="compass-needle"></div>
+        <div class="center"></div>
+      </div>
+      <div>
+        <div class="sub">Heading</div>
+        <div class="big-val" id="heading-val">—°</div>
+      </div>
+    </div>
+    <div class="row"><label>Pitch (elev)</label><span class="val" id="pitch-val">—</span></div>
+    <div class="row"><label>Roll</label><span class="val" id="roll-val">—</span></div>
+    <button id="orient-save">Snapshot &amp; Save</button>
+    <h3>Saved Orientations</h3>
+    <div id="saved-orients"></div>
+  </div>
+</div>
+
+<!-- LANDMARKS TAB -->
+<div class="tab-content" id="tab-landmarks">
+  <div class="panel">
+    <h2>Landmark Catalog</h2>
+    <div class="sub">Pre-record landmarks before shooting. Tap "Pin here" at each known point to capture GPS.</div>
+    <input id="lm-name" placeholder="Landmark name (e.g. Runway 06 end)">
+    <input id="lm-alt" type="number" placeholder="Altitude (m) — optional">
+    <button id="lm-capture">Pin Here (capture GPS)</button>
+    <button id="lm-manual" class="secondary">Enter Lat/Lon Manually</button>
+    <h3>Saved Landmarks</h3>
+    <div id="saved-landmarks"></div>
+  </div>
+</div>
+
+<!-- EXPORT TAB -->
+<div class="tab-content" id="tab-export">
+  <div class="panel">
+    <h2>Save &amp; Share</h2>
+    <div class="sub">Save your logs locally then upload to Google Drive/email later. Everything is stored in your browser's localStorage — nothing is auto-uploaded.</div>
+
+    <h3>Full log (JSON — for later processing)</h3>
+    <button id="share-json">Share / Save JSON</button>
+    <button id="download-json" class="secondary">Download JSON to Files</button>
+
+    <h3>Landmarks only (CSV — for landmark_calibrate.py)</h3>
+    <button id="share-csv">Share / Save CSV</button>
+    <button id="download-csv" class="secondary">Download CSV to Files</button>
+
+    <h3>Preview</h3>
+    <button id="preview-json" class="secondary">Preview JSON</button>
+    <button id="preview-csv" class="secondary">Preview CSV</button>
+    <textarea id="export-output" readonly placeholder="Preview will appear here"></textarea>
+    <button id="copy-output" class="secondary">Copy Preview to Clipboard</button>
+
+    <h3>Danger zone</h3>
+    <button id="clear-all" class="err">Clear All Saved Data</button>
+
+    <div class="status warn" style="margin-top:12px">
+      <strong>iOS users:</strong> "Share / Save" opens the native share sheet — pick Files, Google Drive (if installed), Mail, Notes, etc. "Download" saves directly to your Downloads folder (iCloud Drive → Downloads).<br><br>
+      <strong>Android users:</strong> "Share / Save" opens the system share sheet with Google Drive and others. "Download" saves to the Downloads folder.
+    </div>
+  </div>
+</div>
+
+<details>
+  <summary>How to use this tool</summary>
+  <div style="font-size: 0.85em; color: var(--muted); padding: 10px;">
+    <p><strong>1. Position tab:</strong> Stand at each camera tripod location, tap "Start Averaging", wait 2-5 min. Tap "Stop & Save" and enter a label ("iPhone 15", "Pixel 8", "GoPro 1").</p>
+    <p><strong>2. Orientation tab:</strong> On iOS, tap "Request Permission" first. Aim the phone at your target, tap "Snapshot & Save". This logs raw sensor values — heading will be imprecise, use landmarks instead.</p>
+    <p><strong>3. Landmarks tab:</strong> Walk to each landmark (runway corner, building, tower), tap "Pin Here". Or enter GPS manually from Google Maps for landmarks you can't walk to.</p>
+    <p><strong>4. Export tab:</strong> Copy the JSON when you're done. Send it to your laptop/dev machine.</p>
+    <p>All data persists in browser localStorage, works offline after first load.</p>
+  </div>
+</details>
+
+<script>
+(() => {
+  // Storage helpers
+  const storage = {
+    get(k, def = null) { try { return JSON.parse(localStorage.getItem('pvfl_' + k)) ?? def; } catch (e) { return def; } },
+    set(k, v) { localStorage.setItem('pvfl_' + k, JSON.stringify(v)); },
+  };
+
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---- GPS averaging ----
+  let gpsWatch = null;
+  let gpsSamples = [];
+  let gpsAvg = null;
+
+  function updateGpsDisplay() {
+    if (!gpsSamples.length) return;
+    // Average lat/lon/alt
+    const n = gpsSamples.length;
+    const sumLat = gpsSamples.reduce((s, x) => s + x.lat, 0);
+    const sumLon = gpsSamples.reduce((s, x) => s + x.lon, 0);
+    const sumAlt = gpsSamples.reduce((s, x) => s + x.alt, 0);
+    const avgAcc = gpsSamples.reduce((s, x) => s + x.acc, 0) / n;
+    gpsAvg = { lat: sumLat / n, lon: sumLon / n, alt: sumAlt / n, acc: avgAcc };
+    document.getElementById('gps-lat').textContent = gpsAvg.lat.toFixed(7);
+    document.getElementById('gps-lon').textContent = gpsAvg.lon.toFixed(7);
+    document.getElementById('gps-alt').textContent = gpsAvg.alt.toFixed(1);
+    document.getElementById('gps-acc').textContent = avgAcc.toFixed(1);
+    document.getElementById('gps-n').textContent = n;
+  }
+
+  document.getElementById('gps-start').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      document.getElementById('gps-status').className = 'status err';
+      document.getElementById('gps-status').textContent = 'Geolocation not supported';
+      return;
+    }
+    gpsSamples = [];
+    gpsWatch = navigator.geolocation.watchPosition(
+      p => {
+        gpsSamples.push({
+          lat: p.coords.latitude,
+          lon: p.coords.longitude,
+          alt: p.coords.altitude ?? 0,
+          acc: p.coords.accuracy,
+        });
+        updateGpsDisplay();
+        document.getElementById('gps-status').className = 'status ok';
+        document.getElementById('gps-status').textContent = `Averaging... (accuracy ~${p.coords.accuracy.toFixed(1)}m)`;
+      },
+      err => {
+        document.getElementById('gps-status').className = 'status err';
+        document.getElementById('gps-status').textContent = 'GPS error: ' + err.message;
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+    );
+  });
+
+  document.getElementById('gps-stop').addEventListener('click', () => {
+    if (gpsWatch !== null) navigator.geolocation.clearWatch(gpsWatch);
+    gpsWatch = null;
+    if (!gpsAvg) return;
+    const label = prompt('Label this position (e.g. "iPhone 15", "Camera 0 tripod"):');
+    if (!label) return;
+    const saved = storage.get('positions', []);
+    saved.push({
+      label,
+      lat: gpsAvg.lat,
+      lon: gpsAvg.lon,
+      alt: gpsAvg.alt,
+      accuracy_m: gpsAvg.acc,
+      n_samples: gpsSamples.length,
+      timestamp: new Date().toISOString(),
+    });
+    storage.set('positions', saved);
+    renderSavedPositions();
+    document.getElementById('gps-status').className = 'status ok';
+    document.getElementById('gps-status').textContent = `Saved: ${label} (${gpsSamples.length} samples)`;
+  });
+
+  function renderSavedPositions() {
+    const saved = storage.get('positions', []);
+    const el = document.getElementById('saved-positions');
+    if (saved.length === 0) {
+      el.innerHTML = '<div class="sub">No positions saved yet.</div>';
+      return;
+    }
+    el.innerHTML = saved.map((p, i) => `
+      <div class="landmark-entry">
+        <div class="name">${p.label}</div>
+        <div>${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}, ${p.alt.toFixed(1)}m</div>
+        <div style="color:var(--muted)">±${p.accuracy_m.toFixed(1)}m, ${p.n_samples} samples</div>
+        <button class="err" style="margin-top:4px" onclick="window.pvflDel('positions', ${i})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  // ---- Orientation ----
+  let orientState = { heading: null, pitch: null, roll: null };
+
+  function updateOrient(h, p, r) {
+    orientState = { heading: h, pitch: p, roll: r };
+    document.getElementById('heading-val').textContent = h !== null ? h.toFixed(1) + '°' : '—';
+    document.getElementById('pitch-val').textContent = p !== null ? p.toFixed(1) + '°' : '—';
+    document.getElementById('roll-val').textContent = r !== null ? r.toFixed(1) + '°' : '—';
+    if (h !== null) {
+      document.getElementById('compass-needle').style.transform = `rotate(${h}deg)`;
+    }
+  }
+
+  function handleOrientation(e) {
+    // iOS uses webkitCompassHeading (true north), Android uses alpha
+    let heading = null;
+    if (e.webkitCompassHeading !== undefined) {
+      heading = e.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      heading = (360 - e.alpha) % 360;
+    }
+    const pitch = e.beta !== null ? -e.beta : null;  // tilt front/back; negated so +up = +pitch
+    const roll = e.gamma;
+    updateOrient(heading, pitch, roll);
+    document.getElementById('orient-status').className = 'status ok';
+    document.getElementById('orient-status').textContent = 'Live sensor data';
+  }
+
+  document.getElementById('orient-req').addEventListener('click', async () => {
+    // iOS 13+ requires explicit permission
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const resp = await DeviceOrientationEvent.requestPermission();
+        if (resp === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation, true);
+          document.getElementById('orient-status').className = 'status ok';
+          document.getElementById('orient-status').textContent = 'Permission granted';
+        } else {
+          document.getElementById('orient-status').className = 'status err';
+          document.getElementById('orient-status').textContent = 'Permission denied';
+        }
+      } catch (err) {
+        document.getElementById('orient-status').className = 'status err';
+        document.getElementById('orient-status').textContent = 'Error: ' + err.message;
+      }
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      document.getElementById('orient-status').className = 'status ok';
+      document.getElementById('orient-status').textContent = 'Listening...';
+    }
+  });
+
+  document.getElementById('orient-save').addEventListener('click', () => {
+    if (orientState.heading === null) {
+      alert('No orientation data yet. Tap "Request Permission" first.');
+      return;
+    }
+    const label = prompt('Label this orientation snapshot (e.g. "iPhone 15 aimed at runway"):');
+    if (!label) return;
+    const saved = storage.get('orients', []);
+    saved.push({
+      label,
+      ...orientState,
+      timestamp: new Date().toISOString(),
+    });
+    storage.set('orients', saved);
+    renderSavedOrients();
+  });
+
+  function renderSavedOrients() {
+    const saved = storage.get('orients', []);
+    const el = document.getElementById('saved-orients');
+    if (saved.length === 0) {
+      el.innerHTML = '<div class="sub">No orientations saved yet.</div>';
+      return;
+    }
+    el.innerHTML = saved.map((o, i) => `
+      <div class="landmark-entry">
+        <div class="name">${o.label}</div>
+        <div>heading=${o.heading?.toFixed(1)}° pitch=${o.pitch?.toFixed(1)}° roll=${o.roll?.toFixed(1)}°</div>
+        <button class="err" style="margin-top:4px" onclick="window.pvflDel('orients', ${i})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  // ---- Landmarks ----
+  document.getElementById('lm-capture').addEventListener('click', () => {
+    const name = document.getElementById('lm-name').value.trim();
+    if (!name) { alert('Enter a landmark name first'); return; }
+    if (!navigator.geolocation) { alert('GPS not available'); return; }
+    navigator.geolocation.getCurrentPosition(
+      p => {
+        const alt = parseFloat(document.getElementById('lm-alt').value) || p.coords.altitude || 0;
+        const saved = storage.get('landmarks', []);
+        saved.push({
+          name,
+          lat: p.coords.latitude,
+          lon: p.coords.longitude,
+          alt,
+          accuracy_m: p.coords.accuracy,
+          timestamp: new Date().toISOString(),
+        });
+        storage.set('landmarks', saved);
+        renderLandmarks();
+        document.getElementById('lm-name').value = '';
+        document.getElementById('lm-alt').value = '';
+      },
+      err => alert('GPS error: ' + err.message),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  });
+
+  document.getElementById('lm-manual').addEventListener('click', () => {
+    const name = document.getElementById('lm-name').value.trim();
+    if (!name) { alert('Enter a landmark name first'); return; }
+    const input = prompt('Enter lat,lon,alt (e.g. 43.6830,-79.5900,173):');
+    if (!input) return;
+    const parts = input.split(',').map(x => parseFloat(x.trim()));
+    if (parts.length < 2 || parts.some(isNaN)) { alert('Invalid format'); return; }
+    const saved = storage.get('landmarks', []);
+    saved.push({
+      name,
+      lat: parts[0],
+      lon: parts[1],
+      alt: parts[2] || 0,
+      accuracy_m: 0,
+      manual: true,
+      timestamp: new Date().toISOString(),
+    });
+    storage.set('landmarks', saved);
+    renderLandmarks();
+    document.getElementById('lm-name').value = '';
+    document.getElementById('lm-alt').value = '';
+  });
+
+  function renderLandmarks() {
+    const saved = storage.get('landmarks', []);
+    const el = document.getElementById('saved-landmarks');
+    if (saved.length === 0) {
+      el.innerHTML = '<div class="sub">No landmarks saved yet.</div>';
+      return;
+    }
+    el.innerHTML = saved.map((l, i) => `
+      <div class="landmark-entry">
+        <div class="name">${l.name}</div>
+        <div>${l.lat.toFixed(7)}, ${l.lon.toFixed(7)}, ${l.alt.toFixed(1)}m ${l.manual ? '(manual)' : ''}</div>
+        <button class="err" style="margin-top:4px" onclick="window.pvflDel('landmarks', ${i})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  window.pvflDel = (key, idx) => {
+    if (!confirm('Delete this entry?')) return;
+    const saved = storage.get(key, []);
+    saved.splice(idx, 1);
+    storage.set(key, saved);
+    renderSavedPositions();
+    renderSavedOrients();
+    renderLandmarks();
+  };
+
+  // ---- Export helpers ----
+  function buildJson() {
+    const data = {
+      exported_at: new Date().toISOString(),
+      positions: storage.get('positions', []),
+      orientations: storage.get('orients', []),
+      landmarks: storage.get('landmarks', []),
+    };
+    return JSON.stringify(data, null, 2);
+  }
+
+  function buildCsv() {
+    const landmarks = storage.get('landmarks', []);
+    let csv = 'name,lat,lon,alt\n';
+    for (const l of landmarks) {
+      csv += `${l.name},${l.lat},${l.lon},${l.alt}\n`;
+    }
+    return csv;
+  }
+
+  function timestampFilename(ext) {
+    // 2026-04-10_143052 format — sortable and includes time for multiple exports per day
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    return `pixelvox_field_log_${stamp}.${ext}`;
+  }
+
+  async function shareOrDownload(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const file = new File([blob], filename, { type: mimeType });
+
+    // Try native share sheet first (iOS/Android)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'PixelVox Field Log',
+          text: 'Camera setup log from field_logger'
+        });
+        return;
+      } catch (err) {
+        // User cancelled or share failed — fall through to download
+        if (err.name !== 'AbortError') console.warn('Share failed:', err);
+      }
+    }
+
+    // Fallback: download link (saves to Files/Downloads)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  function directDownload(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  // ---- Share / Download buttons ----
+  document.getElementById('share-json').addEventListener('click', async () => {
+    const content = buildJson();
+    await shareOrDownload(content, timestampFilename('json'), 'application/json');
+  });
+
+  document.getElementById('share-csv').addEventListener('click', async () => {
+    const content = buildCsv();
+    await shareOrDownload(content, timestampFilename('csv'), 'text/csv');
+  });
+
+  document.getElementById('download-json').addEventListener('click', () => {
+    directDownload(buildJson(), timestampFilename('json'), 'application/json');
+  });
+
+  document.getElementById('download-csv').addEventListener('click', () => {
+    directDownload(buildCsv(), timestampFilename('csv'), 'text/csv');
+  });
+
+  // ---- Preview buttons ----
+  document.getElementById('preview-json').addEventListener('click', () => {
+    document.getElementById('export-output').value = buildJson();
+  });
+
+  document.getElementById('preview-csv').addEventListener('click', () => {
+    document.getElementById('export-output').value = buildCsv();
+  });
+
+  document.getElementById('copy-output').addEventListener('click', () => {
+    const ta = document.getElementById('export-output');
+    if (!ta.value) { alert('Nothing to copy — tap Preview first'); return; }
+    ta.select();
+    document.execCommand('copy');
+    alert('Copied to clipboard');
+  });
+
+  document.getElementById('clear-all').addEventListener('click', () => {
+    if (!confirm('Delete ALL saved data? This cannot be undone.')) return;
+    storage.set('positions', []);
+    storage.set('orients', []);
+    storage.set('landmarks', []);
+    renderSavedPositions();
+    renderSavedOrients();
+    renderLandmarks();
+    document.getElementById('export-output').value = '';
+  });
+
+  // Initial render
+  renderSavedPositions();
+  renderSavedOrients();
+  renderLandmarks();
+})();
+</script>
+</body>
+</html>
