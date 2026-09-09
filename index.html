@@ -222,7 +222,7 @@
 <div class="tab-content" id="tab-cameras">
   <div class="panel">
     <h2>Camera Rig</h2>
-    <div class="sub">One entry per camera, in camera_index order (first saved = camera 0 = ENU anchor). Label must match the video file name you will copy into raw/ (e.g. <b>iphone15</b> for iphone15.mp4).</div>
+    <div class="sub">One entry per camera, in camera_index order (first saved = camera 0 = ENU anchor). Label must match the video file name you will copy into raw/ (e.g. <b>iphone15</b> for iphone15.mp4). Fill these in at home; the tripod position is assigned on site from the saved card.</div>
     <input id="cam-label" placeholder="Label = video file stem (e.g. iphone15)">
     <input id="cam-device" placeholder="Device (e.g. iPhone 15, GoPro Hero 13)">
     <input id="cam-app" placeholder="App / mode (e.g. Blackmagic Cam 4K30, GoPro Linear)">
@@ -316,6 +316,12 @@
     <div class="sub">The camera phones cannot run this page while recording. Do the setup here, export the full log, and import it on the device that will press SYNC EVENT NOW (laptop on the hotspot), or the other way round. Merging adds; it never deletes.</div>
     <input id="import-file" type="file" accept="application/json,.json">
     <button id="import-paste" class="secondary">Paste JSON instead</button>
+    <div class="row">
+      <input id="import-url" value="danville_prefill.json" placeholder="pre-fill file name or URL">
+    </div>
+    <button id="import-url-btn" class="secondary">Load pre-fill from URL</button>
+    <div class="sub">Or open the page as <b>?prefill=danville_prefill.json</b> to import it automatically.</div>
+    <div id="import-status" class="status warn">Nothing imported yet</div>
 
     <h3>Danger zone</h3>
     <button id="clear-all" class="err">Clear All Saved Data</button>
@@ -355,7 +361,7 @@
     const fps = cams.length && cams[0].fps ? Number(cams[0].fps) : 30;
 
     const cameras = cams.map((c, i) => {
-      const pos = positions[c.position_idx] || null;
+      const pos = (c.position_idx !== null && c.position_idx !== undefined) ? (positions[c.position_idx] || null) : null;
       const ori = c.orient_idx !== null && c.orient_idx !== undefined ? orients[c.orient_idx] : null;
       const recStart = events.find(e => e.kind === 'record_start' && e.camera_label === c.label) || null;
       const out = {
@@ -694,6 +700,14 @@
     `).join('');
   }
 
+  window.pvflSetPos = (camIdx, val) => {
+    const cams = storage.get('cameras', []);
+    if (!cams[camIdx]) return;
+    cams[camIdx].position_idx = val === '' ? null : Number(val);
+    storage.set('cameras', cams);
+    renderCameras();
+  };
+
   window.pvflDel = (key, idx) => {
     if (!confirm('Delete this entry?')) return;
     const saved = storage.get(key, []);
@@ -867,8 +881,7 @@
   document.getElementById('cam-save').addEventListener('click', () => {
     const label = document.getElementById('cam-label').value.trim().replace(/[^A-Za-z0-9_-]/g, '');
     if (!label) { alert('Label required (letters/digits/_/-, becomes the video file name)'); return; }
-    const posIdx = document.getElementById('cam-pos').value;
-    if (posIdx === '') { alert('Pick the tripod position (save one on the Position tab first)'); return; }
+    const posIdx = document.getElementById('cam-pos').value;   // may be empty at home; assign on site from the card
     const oriIdx = document.getElementById('cam-orient').value;
     const cams = storage.get('cameras', []);
     if (cams.some(c => c.label === label)) { alert('A camera with that label already exists - delete it first'); return; }
@@ -879,7 +892,7 @@
       fov_degrees: document.getElementById('cam-fov').value,
       fov_source: document.getElementById('cam-fov-source').value.trim(),
       fps: document.getElementById('cam-fps').value,
-      position_idx: Number(posIdx),
+      position_idx: posIdx === '' ? null : Number(posIdx),
       orient_idx: oriIdx === '' ? null : Number(oriIdx),
       on_axis_landmark: document.getElementById('cam-onaxis').value,
       landmarks_visible: document.getElementById('cam-visible').value.split(',').map(s => s.trim()).filter(Boolean),
@@ -908,7 +921,11 @@
         return '<div class="landmark-entry">' +
           '<div class="name">camera ' + i + ': ' + c.label + '</div>' +
           '<div>' + (c.device || '-') + ' / ' + (c.app || '-') + ' / FOV ' + (c.fov_degrees || '?') + ' deg / ' + (c.fps || '?') + ' fps</div>' +
-          '<div style="color:var(--muted)">pos: ' + (p ? p.label : 'MISSING') + ' | on-axis: ' + (c.on_axis_landmark || '-') + ' | ' + flags + '</div>' +
+          '<div style="color:var(--muted)">on-axis: ' + (c.on_axis_landmark || '-') + ' | ' + flags + '</div>' +
+          '<select onchange="window.pvflSetPos(' + i + ', this.value)">' +
+            '<option value="">' + (p ? 'position: ' + p.label : 'ASSIGN TRIPOD POSITION (on site)') + '</option>' +
+            positions.map((q, j) => '<option value="' + j + '"' + (c.position_idx === j ? ' selected' : '') + '>' + q.label + ' (' + q.lat.toFixed(5) + ', ' + q.lon.toFixed(5) + ')</option>').join('') +
+          '</select>' +
           '<button class="err" style="margin-top:4px" onclick="window.pvflDel(' + "'cameras'" + ', ' + i + ')">Delete</button>' +
           '</div>';
       }).join('');
@@ -1030,6 +1047,7 @@
     let d;
     try { d = JSON.parse(text); } catch (e) { alert('Not valid JSON'); return; }
     if (!d || typeof d !== 'object') { alert('Not a field logger export'); return; }
+    if (d.positions === undefined && d.landmarks === undefined && d.cameras === undefined) { alert('Not a field logger export (no positions/landmarks/cameras keys)'); return; }
     // camera entries reference positions/orientations by index: remap to the merged lists
     const posBefore = storage.get('positions', []);
     const oriBefore = storage.get('orients', []);
@@ -1055,7 +1073,9 @@
       storage.set('session', Object.assign({}, cur, d.session));
     }
     renderSavedPositions(); renderSavedOrients(); renderLandmarks(); renderCameras(); renderSync(); loadSession();
-    alert('Imported: ' + nPos + ' positions, ' + nOri + ' orientations, ' + nLm + ' landmarks, ' + nCam + ' cameras, ' + nEv + ' sync events');
+    const st = document.getElementById('import-status');
+    st.className = 'status ok';
+    st.textContent = 'Imported: ' + nPos + ' positions, ' + nOri + ' orientations, ' + nLm + ' landmarks, ' + nCam + ' cameras, ' + nEv + ' sync events (duplicates skipped)';
   }
   document.getElementById('import-file').addEventListener('change', (ev) => {
     const f = ev.target.files && ev.target.files[0];
@@ -1064,6 +1084,17 @@
     rd.onload = () => importFullLog(String(rd.result));
     rd.readAsText(f);
     ev.target.value = '';
+  });
+  async function importFromUrl(u) {
+    try {
+      const resp = await fetch(u, { cache: 'no-store' });
+      if (!resp.ok) { alert('Fetch failed: HTTP ' + resp.status); return; }
+      importFullLog(await resp.text());
+    } catch (e) { alert('Fetch failed: ' + e.message + ' (offline? use the file picker or paste)'); }
+  }
+  document.getElementById('import-url-btn').addEventListener('click', () => {
+    const u = document.getElementById('import-url').value.trim();
+    if (u) importFromUrl(u);
   });
   document.getElementById('import-paste').addEventListener('click', () => {
     const t = prompt('Paste the full-log JSON from the other device:');
@@ -1078,6 +1109,10 @@
   renderSavedPositions();
   renderSavedOrients();
   renderLandmarks();
+  try {
+    const pf = new URLSearchParams(location.search).get('prefill');
+    if (pf) { document.getElementById('import-url').value = pf; importFromUrl(pf); }
+  } catch (e) { /* ignore */ }
 })();
 </script>
 </body>

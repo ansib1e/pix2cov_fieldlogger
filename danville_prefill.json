@@ -1,0 +1,28 @@
+{
+  "_what": "Field logger pre-fill for the Danville shoot. Import on the phone (Export tab -> Load pre-fill from URL, or Import file). Adds landmarks, the three camera entries and the session; tripod positions are assigned on site from each camera card.",
+  "_source": "runway ends and masts from OpenStreetMap geometry, hotel corners from the OSM building outline, ground elevations from open-meteo (90 m DEM); hotel roof = ground 167 m + 13 floors x 3.2 m",
+  "positions": [],
+  "orientations": [],
+  "landmarks": [
+    {"name": "RWY05 threshold end brg23 2.9km", "lat": 43.674143, "lon": -79.664093, "alt": 172, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY33L threshold end brg27 4.5km", "lat": 43.686058, "lon": -79.652719, "alt": 165, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY33R threshold end brg31 5.5km", "lat": 43.692803, "lon": -79.643302, "alt": 169, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY23 threshold end brg36 6.1km", "lat": 43.695144, "lon": -79.633595, "alt": 170, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "Holiday Inn Dixon Rd left roof corner brg56 7.5km", "lat": 43.687839, "lon": -79.600903, "alt": 209, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "Holiday Inn Dixon Rd right roof corner brg57 7.5km", "lat": 43.687115, "lon": -79.600109, "alt": 209, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY15R threshold end brg63 4.4km", "lat": 43.667966, "lon": -79.629083, "alt": 165, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY24R threshold end brg64 7.3km", "lat": 43.679359, "lon": -79.596831, "alt": 165, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY15L threshold end brg66 5.6km", "lat": 43.670813, "lon": -79.614560, "alt": 165, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY06L threshold end brg75 4.6km", "lat": 43.660956, "lon": -79.623564, "alt": 160, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "RWY06R threshold end brg79 4.6km", "lat": 43.658317, "lon": -79.621909, "alt": 159, "accuracy_m": 5, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "Mast cluster brg41 3.9km ALT UNCERTAIN", "lat": 43.676654, "lon": -79.646755, "alt": 194, "accuracy_m": 10, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"name": "Mast cluster brg62 4.0km ALT UNCERTAIN", "lat": 43.666964, "lon": -79.633800, "alt": 192, "accuracy_m": 10, "manual": true, "timestamp": "2026-09-09T20:00:00.000Z"}
+  ],
+  "cameras": [
+    {"label": "iphone15", "device": "iPhone 15", "app": "Blackmagic Camera 4K30 1x, stab OFF, shutter 1/60 ISO fixed, focus inf, WB 5600K", "fov_degrees": "69", "fov_source": "spec 26mm-eq -> 69.4 deg; refined by landmark_calibrate --solve-fov", "fps": "30", "position_idx": null, "orient_idx": null, "on_axis_landmark": "RWY05 threshold end brg23 2.9km", "landmarks_visible": ["RWY05 threshold end brg23 2.9km", "RWY33L threshold end brg27 4.5km", "RWY23 threshold end brg36 6.1km", "Holiday Inn Dixon Rd left roof corner brg56 7.5km"], "tripod_height_m": "", "stabilisation_off": false, "exposure_locked": false, "focus_locked": false, "notes": "camera 0 = ENU anchor; also the hotspot", "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"label": "pixel8", "device": "Pixel 8 (GrapheneOS)", "app": "Open Camera 4K30 1x Camera2, stab OFF, ISO+1/60 locked, focus inf, WB daylight", "fov_degrees": "71", "fov_source": "spec 25mm-eq / 82 deg diag -> 71.5 deg; refined by --solve-fov", "fps": "30", "position_idx": null, "orient_idx": null, "on_axis_landmark": "RWY05 threshold end brg23 2.9km", "landmarks_visible": ["RWY05 threshold end brg23 2.9km", "RWY33L threshold end brg27 4.5km", "RWY23 threshold end brg36 6.1km", "Holiday Inn Dixon Rd left roof corner brg56 7.5km"], "tripod_height_m": "", "stabilisation_off": false, "exposure_locked": false, "focus_locked": false, "notes": "near pair with iphone15, 10-20 m apart, slightly different yaw", "timestamp": "2026-09-09T20:00:00.000Z"},
+    {"label": "gopro", "device": "GoPro Hero 13 Black", "app": "4K30 Linear, HyperSmooth OFF, Protune shutter 1/60 ISO 100/100, WB 5500K, Natural", "fov_degrees": "87", "fov_source": "GoPro Linear 16:9 table ~87 deg (verify); refined by --solve-fov", "fps": "30", "position_idx": null, "orient_idx": null, "on_axis_landmark": "RWY23 threshold end brg36 6.1km", "landmarks_visible": ["RWY05 threshold end brg23 2.9km", "RWY23 threshold end brg36 6.1km", "Holiday Inn Dixon Rd left roof corner brg56 7.5km", "RWY15R threshold end brg63 4.4km"], "tripod_height_m": "", "stabilisation_off": false, "exposure_locked": false, "focus_locked": false, "notes": "far camera, 150-250 m from the pair", "timestamp": "2026-09-09T20:00:00.000Z"}
+  ],
+  "sync_events": [],
+  "session": {"site": "Danville Terminal park, Mississauga (43.6503, -79.6781)", "weather": "", "adsb_capture": false, "adsb_source": "tools/adsb_capture.py on the laptop (adsb.lol)", "notes": "Pre-filled 2026-09-09. On site: Position tab per tripod, assign positions on the camera cards, tick the three locks after checking each camera."}
+}
