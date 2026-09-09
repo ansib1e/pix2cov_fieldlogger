@@ -10,7 +10,9 @@ on a phone, and exporting it as the `recipe.json` that `tools/ingest_shoot.py` r
 2. On site, work through the tabs in order:
    - **Position** - stand the phone on each tripod head, average 2-5 min, save with a label.
    - **Landmarks** - pin or type >= 5 landmarks per camera view (runway ends, towers, buildings), plus the on-axis one.
-   - **Cameras** - one entry per camera in `camera_index` order. Label = the video file stem you will copy into
+   - **Cameras** - one entry per camera in `camera_index` order. Entries can be saved at home without a tripod position
+     and the position assigned on site from the saved card. `?prefill=<file>` in the URL (or *Load pre-fill from URL*)
+     imports a prepared full-log JSON such as `danville_prefill.json`. Label = the video file stem you will copy into
      `raw/` (e.g. `iphone15` -> `iphone15.mp4`). Pick its tripod position and on-axis landmark, enter the measured FOV,
      tick stabilisation OFF / exposure locked / focus locked.
    - **Sync** - film the millisecond UTC clock with every camera at the start; press **SYNC EVENT NOW** at the

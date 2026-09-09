@@ -700,6 +700,13 @@
     `).join('');
   }
 
+  window.pvflSetFlag = (camIdx, key, val) => {
+    const cams = storage.get('cameras', []);
+    if (!cams[camIdx]) return;
+    cams[camIdx][key] = !!val;
+    storage.set('cameras', cams);
+  };
+
   window.pvflSetPos = (camIdx, val) => {
     const cams = storage.get('cameras', []);
     if (!cams[camIdx]) return;
@@ -917,11 +924,14 @@
     else {
       el.innerHTML = cams.map((c, i) => {
         const p = positions[c.position_idx];
-        const flags = [c.stabilisation_off ? 'stab OFF' : 'stab ?', c.exposure_locked ? 'exp locked' : 'exp ?', c.focus_locked ? 'focus locked' : 'focus ?'].join(' | ');
+        const cb = (key, text) => '<label style="display:inline-block;margin-right:10px"><input type="checkbox" ' + (c[key] ? 'checked' : '') +
+          ' onchange="window.pvflSetFlag(' + i + ', ' + "'" + key + "'" + ', this.checked)"> ' + text + '</label>';
+        const flags = cb('stabilisation_off', 'stab OFF') + cb('exposure_locked', 'exp locked') + cb('focus_locked', 'focus locked');
         return '<div class="landmark-entry">' +
           '<div class="name">camera ' + i + ': ' + c.label + '</div>' +
           '<div>' + (c.device || '-') + ' / ' + (c.app || '-') + ' / FOV ' + (c.fov_degrees || '?') + ' deg / ' + (c.fps || '?') + ' fps</div>' +
-          '<div style="color:var(--muted)">on-axis: ' + (c.on_axis_landmark || '-') + ' | ' + flags + '</div>' +
+          '<div style="color:var(--muted)">on-axis: ' + (c.on_axis_landmark || '-') + '</div>' +
+          '<div>' + flags + '</div>' +
           '<select onchange="window.pvflSetPos(' + i + ', this.value)">' +
             '<option value="">' + (p ? 'position: ' + p.label : 'ASSIGN TRIPOD POSITION (on site)') + '</option>' +
             positions.map((q, j) => '<option value="' + j + '"' + (c.position_idx === j ? ' selected' : '') + '>' + q.label + ' (' + q.lat.toFixed(5) + ', ' + q.lon.toFixed(5) + ')</option>').join('') +
