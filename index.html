@@ -119,7 +119,7 @@
   .status.warn { background: rgba(255, 170, 0, 0.15); color: var(--warn); border-left: 3px solid var(--warn); }
   .status.err { background: rgba(255, 68, 102, 0.15); color: var(--err); border-left: 3px solid var(--err); }
   textarea { min-height: 120px; font-family: monospace; font-size: 0.85em; }
-  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
   .tab {
     padding: 10px 14px;
     cursor: pointer;
@@ -154,6 +154,8 @@
   <div class="tab active" data-tab="position">Position</div>
   <div class="tab" data-tab="orientation">Orientation</div>
   <div class="tab" data-tab="landmarks">Landmarks</div>
+  <div class="tab" data-tab="cameras">Cameras</div>
+  <div class="tab" data-tab="sync">Sync</div>
   <div class="tab" data-tab="export">Export</div>
 </div>
 
@@ -216,11 +218,85 @@
   </div>
 </div>
 
+<!-- CAMERAS TAB -->
+<div class="tab-content" id="tab-cameras">
+  <div class="panel">
+    <h2>Camera Rig</h2>
+    <div class="sub">One entry per camera, in camera_index order (first saved = camera 0 = ENU anchor). Label must match the video file name you will copy into raw/ (e.g. <b>iphone15</b> for iphone15.mp4).</div>
+    <input id="cam-label" placeholder="Label = video file stem (e.g. iphone15)">
+    <input id="cam-device" placeholder="Device (e.g. iPhone 15, GoPro Hero 13)">
+    <input id="cam-app" placeholder="App / mode (e.g. Blackmagic Cam 4K30, GoPro Linear)">
+    <div class="row">
+      <input id="cam-fov" type="number" step="0.1" placeholder="FOV deg (horizontal, measured)">
+      <input id="cam-fps" type="number" step="0.01" placeholder="fps">
+    </div>
+    <input id="cam-fov-source" placeholder="FOV source (e.g. measured 2026-09-15 tape test / spec sheet)">
+    <select id="cam-pos"><option value="">Tripod position (from Position tab)...</option></select>
+    <select id="cam-orient"><option value="">Orientation snapshot (sanity only)...</option></select>
+    <select id="cam-onaxis"><option value="">On-axis landmark (from Landmarks tab)...</option></select>
+    <input id="cam-visible" placeholder="Landmarks visible in frame (comma separated)">
+    <input id="cam-tripod" type="number" step="0.01" placeholder="Tripod head height above ground (m)">
+    <div class="row">
+      <label><input type="checkbox" id="cam-stab"> Stabilisation OFF</label>
+      <label><input type="checkbox" id="cam-exp"> Exposure locked</label>
+      <label><input type="checkbox" id="cam-focus"> Focus locked (infinity)</label>
+    </div>
+    <input id="cam-notes" placeholder="Notes (glass? wind? bumped?)">
+    <button id="cam-save">Save Camera</button>
+    <h3>Saved Cameras</h3>
+    <div id="saved-cameras"></div>
+  </div>
+</div>
+
+<!-- SYNC TAB -->
+<div class="tab-content" id="tab-sync">
+  <div class="panel">
+    <h2>UTC Clock</h2>
+    <div class="sub">Phone clocks are network-synced. Hold this screen where every camera can see it for a few seconds at the start of each recording: a filmed millisecond clock is the cheapest wall-clock anchor.</div>
+    <div class="big-val" id="utc-clock">--:--:--.---</div>
+    <div class="row"><label>Date (UTC)</label><span class="val" id="utc-date">-</span></div>
+  </div>
+  <div class="panel">
+    <h2>Sync Event</h2>
+    <div class="sub">Press the button at the exact moment the board drops / torch flashes. Do it at the START and again at the END of the recording. The first "start" stamp becomes <b>sync_event_utc</b> in recipe.json.</div>
+    <div class="row">
+      <select id="sync-kind"><option value="start">start</option><option value="end">end</option><option value="other">other</option></select>
+      <input id="sync-note" placeholder="Note (who stood where, board/torch)">
+    </div>
+    <button id="sync-now" style="font-size:1.4em;padding:18px">SYNC EVENT NOW</button>
+    <h3>Recording start (per camera, optional)</h3>
+    <div class="sub">Press when you hit record on a camera. Written as <b>start_time_utc</b>; used only if the visual sync event is missing.</div>
+    <div class="row">
+      <select id="rec-cam"><option value="">Camera...</option></select>
+    </div>
+    <button id="rec-now" class="secondary">Recording started NOW</button>
+    <h3>Saved Events</h3>
+    <div id="saved-sync"></div>
+  </div>
+  <div class="panel">
+    <h2>Session</h2>
+    <input id="ses-site" placeholder="Site (e.g. Danville Terminal park)">
+    <input id="ses-weather" placeholder="Weather / wind / sun position">
+    <div class="row">
+      <label><input type="checkbox" id="ses-adsb"> ADS-B capture running</label>
+    </div>
+    <input id="ses-adsb-src" placeholder="ADS-B source / file (dump1090, tar1090, FR24 export...)">
+    <input id="ses-notes" placeholder="Session notes">
+    <button id="ses-save" class="secondary">Save Session</button>
+    <div id="ses-status" class="status warn">Not saved</div>
+  </div>
+</div>
+
 <!-- EXPORT TAB -->
 <div class="tab-content" id="tab-export">
   <div class="panel">
     <h2>Save &amp; Share</h2>
     <div class="sub">Save your logs locally then upload to Google Drive/email later. Everything is stored in your browser's localStorage — nothing is auto-uploaded.</div>
+
+    <h3>recipe.json (for tools/ingest_shoot.py - the one that matters)</h3>
+    <button id="share-recipe">Share / Save recipe.json</button>
+    <button id="download-recipe" class="secondary">Download recipe.json</button>
+    <button id="preview-recipe" class="secondary">Preview recipe.json</button>
 
     <h3>Full log (JSON — for later processing)</h3>
     <button id="share-json">Share / Save JSON</button>
@@ -235,6 +311,11 @@
     <button id="preview-csv" class="secondary">Preview CSV</button>
     <textarea id="export-output" readonly placeholder="Preview will appear here"></textarea>
     <button id="copy-output" class="secondary">Copy Preview to Clipboard</button>
+
+    <h3>Import from another device (merge)</h3>
+    <div class="sub">The camera phones cannot run this page while recording. Do the setup here, export the full log, and import it on the device that will press SYNC EVENT NOW (laptop on the hotspot), or the other way round. Merging adds; it never deletes.</div>
+    <input id="import-file" type="file" accept="application/json,.json">
+    <button id="import-paste" class="secondary">Paste JSON instead</button>
 
     <h3>Danger zone</h3>
     <button id="clear-all" class="err">Clear All Saved Data</button>
@@ -252,10 +333,110 @@
     <p><strong>1. Position tab:</strong> Stand at each camera tripod location, tap "Start Averaging", wait 2-5 min. Tap "Stop & Save" and enter a label ("iPhone 15", "Pixel 8", "GoPro 1").</p>
     <p><strong>2. Orientation tab:</strong> On iOS, tap "Request Permission" first. Aim the phone at your target, tap "Snapshot & Save". This logs raw sensor values — heading will be imprecise, use landmarks instead.</p>
     <p><strong>3. Landmarks tab:</strong> Walk to each landmark (runway corner, building, tower), tap "Pin Here". Or enter GPS manually from Google Maps for landmarks you can't walk to.</p>
-    <p><strong>4. Export tab:</strong> Copy the JSON when you're done. Send it to your laptop/dev machine.</p>
+    <p><strong>4. Cameras tab:</strong> One entry per camera in camera_index order: label = video file stem, device, measured FOV, tripod position, on-axis landmark, stabilisation OFF / exposure locked ticks.</p>
+    <p><strong>5. Sync tab:</strong> Film the UTC clock with each camera at the start; press SYNC EVENT NOW exactly when the board drops (start and end). Optionally stamp each camera's record start.</p>
+    <p><strong>6. Export tab:</strong> Share recipe.json to the laptop, drop it next to raw/ in data/runs/&lt;date_site&gt;/, fill in cameras[].sync_event_seconds from the raw videos, run tools/run_pipeline.py.</p>
     <p>All data persists in browser localStorage, works offline after first load.</p>
   </div>
 </details>
+
+<script>
+// Pure builders (no DOM) so they can be unit-tested in node: window.pvflBuild.recipe(data) etc.
+(function (root) {
+  const NL = String.fromCharCode(10);
+
+  function isoMs(unixMs) { return new Date(unixMs).toISOString(); }
+
+  // data = { positions, orientations, landmarks, cameras, sync_events, session }
+  function recipe(d) {
+    const positions = d.positions || [], orients = d.orientations || [], landmarks = d.landmarks || [];
+    const cams = d.cameras || [], events = d.sync_events || [], ses = d.session || {};
+    const startEv = events.find(e => e.kind === 'start') || events[0] || null;
+    const fps = cams.length && cams[0].fps ? Number(cams[0].fps) : 30;
+
+    const cameras = cams.map((c, i) => {
+      const pos = positions[c.position_idx] || null;
+      const ori = c.orient_idx !== null && c.orient_idx !== undefined ? orients[c.orient_idx] : null;
+      const recStart = events.find(e => e.kind === 'record_start' && e.camera_label === c.label) || null;
+      const out = {
+        label: c.label,
+        video_file: c.label + '.mp4',
+        camera_index: i,
+        lat: pos ? pos.lat : null,
+        lon: pos ? pos.lon : null,
+        alt: pos ? pos.alt + Number(c.tripod_height_m || 0) : null,
+        heading: ori && ori.heading !== null ? Number(ori.heading.toFixed(1)) : 0.0,
+        elev: ori && ori.pitch !== null ? Number(ori.pitch.toFixed(1)) : 0.0,
+        roll: ori && ori.roll !== null ? Number(ori.roll.toFixed(1)) : 0.0,
+        fov_degrees: c.fov_degrees !== null && c.fov_degrees !== '' ? Number(c.fov_degrees) : null,
+        detection_mode: 'sky',
+        _sync_event_seconds_TODO: 'raw-video time (s) where the sync event appears; rename key to sync_event_seconds',
+        _heading_note: 'heading/elev/roll are phone-sensor sanity values; landmark_calibrate.py --save overrides them',
+        _device: c.device || '', _app_mode: c.app || '', _fps: c.fps || null,
+        _fov_source: c.fov_source || '',
+        _position_accuracy_m: pos ? pos.accuracy_m : null, _position_samples: pos ? pos.n_samples : null,
+        _tripod_height_m: c.tripod_height_m !== '' ? Number(c.tripod_height_m || 0) : 0,
+        _on_axis_landmark: c.on_axis_landmark || '',
+        _landmarks_visible: c.landmarks_visible || [],
+        _stabilisation_off: !!c.stabilisation_off, _exposure_locked: !!c.exposure_locked, _focus_locked: !!c.focus_locked,
+        _notes: c.notes || '',
+      };
+      if (recStart) out.start_time_utc = recStart.utc;
+      return out;
+    });
+
+    return {
+      _generated_by: 'tools/field_logger (recipe export)',
+      _exported_at: new Date().toISOString(),
+      _fill_in_before_ingest: [
+        'cameras[].sync_event_seconds: read off each raw video (mm:ss.f -> seconds) where the sync event appears',
+        'grid: ENU metres around the expected targets; 20 m voxels keep the dense grid under ~150 MB',
+        'delete this list',
+      ],
+      session: {
+        site: ses.site || '', date_utc: startEv ? startEv.utc.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        weather: ses.weather || '', adsb_capture: !!ses.adsb_capture, adsb_source: ses.adsb_source || '', notes: ses.notes || '',
+      },
+      target_fps: fps,
+      skip_seconds: 0,
+      pre_roll_seconds: 0,
+      frame_width: 1280,
+      sync_event_utc: startEv ? startEv.utc : null,
+      sync_events: events.map(e => ({ kind: e.kind, utc: e.utc, unix_ms: e.unix_ms, camera_label: e.camera_label || null, note: e.note || '' })),
+      anchor_camera: 0,
+      cameras,
+      landmarks: landmarks.map(l => ({ name: l.name, lat: l.lat, lon: l.lon, alt: l.alt, accuracy_m: l.accuracy_m, manual: !!l.manual })),
+      grid: { voxel_size: 20, min: [-1000, -1000, 0], max: [9000, 9000, 3000] },
+      basemap: { download: true, zoom: 14 },
+    };
+  }
+
+  function landmarksCsv(d) {
+    let csv = 'name,lat,lon,alt' + NL;
+    for (const l of (d.landmarks || [])) csv += l.name + ',' + l.lat + ',' + l.lon + ',' + l.alt + NL;
+    return csv;
+  }
+
+  // Missing-field report shown before export
+  function problems(d) {
+    const out = [];
+    const cams = d.cameras || [], events = d.sync_events || [], positions = d.positions || [];
+    if (cams.length < 2) out.push('fewer than 2 cameras saved');
+    cams.forEach((c, i) => {
+      if (!positions[c.position_idx]) out.push('camera ' + i + ' (' + c.label + '): no tripod position');
+      if (!c.fov_degrees) out.push('camera ' + i + ' (' + c.label + '): no FOV');
+      if (!c.stabilisation_off) out.push('camera ' + i + ' (' + c.label + '): stabilisation not confirmed OFF');
+      if (!c.exposure_locked) out.push('camera ' + i + ' (' + c.label + '): exposure not confirmed locked');
+    });
+    if (!events.some(e => e.kind === 'start')) out.push('no "start" sync event stamped');
+    if ((d.landmarks || []).length < 5) out.push('fewer than 5 landmarks (need >= 5 per camera for calibration)');
+    if (!(d.session || {}).adsb_capture) out.push('ADS-B capture not confirmed');
+    return out;
+  }
+
+  root.pvflBuild = { recipe, landmarksCsv, problems, isoMs };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
 
 <script>
 (() => {
@@ -521,6 +702,8 @@
     renderSavedPositions();
     renderSavedOrients();
     renderLandmarks();
+    renderCameras();
+    renderSync();
   };
 
   // ---- Export helpers ----
@@ -530,6 +713,9 @@
       positions: storage.get('positions', []),
       orientations: storage.get('orients', []),
       landmarks: storage.get('landmarks', []),
+      cameras: storage.get('cameras', []),
+      sync_events: storage.get('sync_events', []),
+      session: storage.get('session', {}),
     };
     return JSON.stringify(data, null, 2);
   }
@@ -634,11 +820,259 @@
     storage.set('positions', []);
     storage.set('orients', []);
     storage.set('landmarks', []);
+    storage.set('cameras', []);
+    storage.set('sync_events', []);
+    storage.set('session', {});
+    renderCameras();
+    renderSync();
+    loadSession();
     renderSavedPositions();
     renderSavedOrients();
     renderLandmarks();
     document.getElementById('export-output').value = '';
   });
+
+
+  // ---- Cameras ----
+  function fillSelect(id, items, labelFn, keepFirst) {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = keepFirst;
+    items.forEach((it, i) => {
+      const o = document.createElement('option');
+      o.value = String(i); o.textContent = labelFn(it, i); sel.appendChild(o);
+    });
+    sel.value = cur;
+  }
+
+  function refreshCameraSelects() {
+    fillSelect('cam-pos', storage.get('positions', []), p => p.label + ' (' + p.lat.toFixed(5) + ', ' + p.lon.toFixed(5) + ', ±' + p.accuracy_m.toFixed(1) + 'm)',
+      '<option value="">Tripod position (from Position tab)...</option>');
+    fillSelect('cam-orient', storage.get('orients', []), o => o.label + ' (h=' + (o.heading ?? 0).toFixed(0) + ' p=' + (o.pitch ?? 0).toFixed(1) + ')',
+      '<option value="">Orientation snapshot (sanity only)...</option>');
+    const lms = storage.get('landmarks', []);
+    const sel = document.getElementById('cam-onaxis');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">On-axis landmark (from Landmarks tab)...</option>';
+    lms.forEach(l => { const o = document.createElement('option'); o.value = l.name; o.textContent = l.name; sel.appendChild(o); });
+    sel.value = cur;
+    const cams = storage.get('cameras', []);
+    const rc = document.getElementById('rec-cam');
+    const rcur = rc.value;
+    rc.innerHTML = '<option value="">Camera...</option>';
+    cams.forEach(c => { const o = document.createElement('option'); o.value = c.label; o.textContent = c.label; rc.appendChild(o); });
+    rc.value = rcur;
+  }
+
+  document.getElementById('cam-save').addEventListener('click', () => {
+    const label = document.getElementById('cam-label').value.trim().replace(/[^A-Za-z0-9_-]/g, '');
+    if (!label) { alert('Label required (letters/digits/_/-, becomes the video file name)'); return; }
+    const posIdx = document.getElementById('cam-pos').value;
+    if (posIdx === '') { alert('Pick the tripod position (save one on the Position tab first)'); return; }
+    const oriIdx = document.getElementById('cam-orient').value;
+    const cams = storage.get('cameras', []);
+    if (cams.some(c => c.label === label)) { alert('A camera with that label already exists - delete it first'); return; }
+    cams.push({
+      label,
+      device: document.getElementById('cam-device').value.trim(),
+      app: document.getElementById('cam-app').value.trim(),
+      fov_degrees: document.getElementById('cam-fov').value,
+      fov_source: document.getElementById('cam-fov-source').value.trim(),
+      fps: document.getElementById('cam-fps').value,
+      position_idx: Number(posIdx),
+      orient_idx: oriIdx === '' ? null : Number(oriIdx),
+      on_axis_landmark: document.getElementById('cam-onaxis').value,
+      landmarks_visible: document.getElementById('cam-visible').value.split(',').map(s => s.trim()).filter(Boolean),
+      tripod_height_m: document.getElementById('cam-tripod').value,
+      stabilisation_off: document.getElementById('cam-stab').checked,
+      exposure_locked: document.getElementById('cam-exp').checked,
+      focus_locked: document.getElementById('cam-focus').checked,
+      notes: document.getElementById('cam-notes').value.trim(),
+      timestamp: new Date().toISOString(),
+    });
+    storage.set('cameras', cams);
+    ['cam-label', 'cam-device', 'cam-app', 'cam-fov', 'cam-fov-source', 'cam-fps', 'cam-visible', 'cam-tripod', 'cam-notes'].forEach(id => document.getElementById(id).value = '');
+    ['cam-stab', 'cam-exp', 'cam-focus'].forEach(id => document.getElementById(id).checked = false);
+    renderCameras();
+  });
+
+  function renderCameras() {
+    const cams = storage.get('cameras', []);
+    const positions = storage.get('positions', []);
+    const el = document.getElementById('saved-cameras');
+    if (cams.length === 0) { el.innerHTML = '<div class="sub">No cameras saved yet.</div>'; }
+    else {
+      el.innerHTML = cams.map((c, i) => {
+        const p = positions[c.position_idx];
+        const flags = [c.stabilisation_off ? 'stab OFF' : 'stab ?', c.exposure_locked ? 'exp locked' : 'exp ?', c.focus_locked ? 'focus locked' : 'focus ?'].join(' | ');
+        return '<div class="landmark-entry">' +
+          '<div class="name">camera ' + i + ': ' + c.label + '</div>' +
+          '<div>' + (c.device || '-') + ' / ' + (c.app || '-') + ' / FOV ' + (c.fov_degrees || '?') + ' deg / ' + (c.fps || '?') + ' fps</div>' +
+          '<div style="color:var(--muted)">pos: ' + (p ? p.label : 'MISSING') + ' | on-axis: ' + (c.on_axis_landmark || '-') + ' | ' + flags + '</div>' +
+          '<button class="err" style="margin-top:4px" onclick="window.pvflDel(' + "'cameras'" + ', ' + i + ')">Delete</button>' +
+          '</div>';
+      }).join('');
+    }
+    refreshCameraSelects();
+  }
+
+  // ---- Sync / clock ----
+  function pad(n, w) { return String(n).padStart(w || 2, '0'); }
+  function tickClock() {
+    const d = new Date();
+    document.getElementById('utc-clock').textContent =
+      pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds()) + '.' + pad(d.getUTCMilliseconds(), 3);
+    document.getElementById('utc-date').textContent = d.toISOString().slice(0, 10) + ' UTC';
+  }
+  setInterval(tickClock, 47);
+  tickClock();
+
+  function stampEvent(kind, extra) {
+    const now = Date.now();
+    const events = storage.get('sync_events', []);
+    events.push(Object.assign({ kind, utc: new Date(now).toISOString(), unix_ms: now }, extra || {}));
+    storage.set('sync_events', events);
+    renderSync();
+    if (navigator.vibrate) navigator.vibrate(80);
+  }
+
+  document.getElementById('sync-now').addEventListener('click', () => {
+    stampEvent(document.getElementById('sync-kind').value, { note: document.getElementById('sync-note').value.trim() });
+  });
+
+  document.getElementById('rec-now').addEventListener('click', () => {
+    const cam = document.getElementById('rec-cam').value;
+    if (!cam) { alert('Pick the camera first (save cameras on the Cameras tab)'); return; }
+    stampEvent('record_start', { camera_label: cam });
+  });
+
+  function renderSync() {
+    const events = storage.get('sync_events', []);
+    const el = document.getElementById('saved-sync');
+    if (events.length === 0) { el.innerHTML = '<div class="sub">No events stamped yet.</div>'; return; }
+    el.innerHTML = events.map((e, i) =>
+      '<div class="landmark-entry">' +
+      '<div class="name">' + e.kind + (e.camera_label ? ' [' + e.camera_label + ']' : '') + '</div>' +
+      '<div>' + e.utc + '</div>' +
+      (e.note ? '<div style="color:var(--muted)">' + e.note + '</div>' : '') +
+      '<button class="err" style="margin-top:4px" onclick="window.pvflDel(' + "'sync_events'" + ', ' + i + ')">Delete</button>' +
+      '</div>').join('');
+  }
+
+  // ---- Session ----
+  function loadSession() {
+    const s = storage.get('session', {});
+    document.getElementById('ses-site').value = s.site || '';
+    document.getElementById('ses-weather').value = s.weather || '';
+    document.getElementById('ses-adsb').checked = !!s.adsb_capture;
+    document.getElementById('ses-adsb-src').value = s.adsb_source || '';
+    document.getElementById('ses-notes').value = s.notes || '';
+    if (s.saved_at) { const st = document.getElementById('ses-status'); st.className = 'status ok'; st.textContent = 'Saved ' + s.saved_at; }
+  }
+  document.getElementById('ses-save').addEventListener('click', () => {
+    const s = {
+      site: document.getElementById('ses-site').value.trim(),
+      weather: document.getElementById('ses-weather').value.trim(),
+      adsb_capture: document.getElementById('ses-adsb').checked,
+      adsb_source: document.getElementById('ses-adsb-src').value.trim(),
+      notes: document.getElementById('ses-notes').value.trim(),
+      saved_at: new Date().toISOString(),
+    };
+    storage.set('session', s);
+    loadSession();
+  });
+
+  // ---- recipe.json export ----
+  function allData() {
+    return {
+      positions: storage.get('positions', []),
+      orientations: storage.get('orients', []),
+      landmarks: storage.get('landmarks', []),
+      cameras: storage.get('cameras', []),
+      sync_events: storage.get('sync_events', []),
+      session: storage.get('session', {}),
+    };
+  }
+  function buildRecipe() { return JSON.stringify(window.pvflBuild.recipe(allData()), null, 2); }
+  function warnProblems() {
+    const p = window.pvflBuild.problems(allData());
+    if (p.length) return confirm('Missing before ingest:' + String.fromCharCode(10) + '- ' + p.join(String.fromCharCode(10) + '- ') + String.fromCharCode(10) + String.fromCharCode(10) + 'Export anyway?');
+    return true;
+  }
+  document.getElementById('share-recipe').addEventListener('click', async () => {
+    if (!warnProblems()) return;
+    await shareOrDownload(buildRecipe(), 'recipe.json', 'application/json');
+  });
+  document.getElementById('download-recipe').addEventListener('click', () => {
+    if (!warnProblems()) return;
+    directDownload(buildRecipe(), 'recipe.json', 'application/json');
+  });
+  document.getElementById('preview-recipe').addEventListener('click', () => {
+    const p = window.pvflBuild.problems(allData());
+    document.getElementById('export-output').value = (p.length ? '// MISSING: ' + p.join('; ') + String.fromCharCode(10) : '') + buildRecipe();
+  });
+
+
+  // ---- Import / merge a full-log JSON from another device ----
+  // Use case: the iPhone is camera 0 and cannot run this page while recording, so the setup data (positions,
+  // landmarks, cameras) is exported from the phone and the sync stamps are pressed on the laptop (or the
+  // other way round). Import merges by content: duplicates are skipped, nothing is deleted.
+  function mergeList(key, incoming, sameFn) {
+    const cur = storage.get(key, []);
+    let added = 0;
+    for (const it of (incoming || [])) {
+      if (!cur.some(x => sameFn(x, it))) { cur.push(it); added++; }
+    }
+    storage.set(key, cur);
+    return added;
+  }
+  function importFullLog(text) {
+    let d;
+    try { d = JSON.parse(text); } catch (e) { alert('Not valid JSON'); return; }
+    if (!d || typeof d !== 'object') { alert('Not a field logger export'); return; }
+    // camera entries reference positions/orientations by index: remap to the merged lists
+    const posBefore = storage.get('positions', []);
+    const oriBefore = storage.get('orients', []);
+    const nPos = mergeList('positions', d.positions, (a, b) => a.label === b.label && a.timestamp === b.timestamp);
+    const nOri = mergeList('orients', d.orientations, (a, b) => a.label === b.label && a.timestamp === b.timestamp);
+    const posAfter = storage.get('positions', []);
+    const oriAfter = storage.get('orients', []);
+    const remap = (list, before, after, idx) => {
+      if (idx === null || idx === undefined || !list[idx]) return idx;
+      const it = list[idx];
+      const j = after.findIndex(x => x.label === it.label && x.timestamp === it.timestamp);
+      return j >= 0 ? j : idx;
+    };
+    const cams = (d.cameras || []).map(c => Object.assign({}, c, {
+      position_idx: remap(d.positions || [], posBefore, posAfter, c.position_idx),
+      orient_idx: remap(d.orientations || [], oriBefore, oriAfter, c.orient_idx),
+    }));
+    const nLm = mergeList('landmarks', d.landmarks, (a, b) => a.name === b.name);
+    const nCam = mergeList('cameras', cams, (a, b) => a.label === b.label);
+    const nEv = mergeList('sync_events', d.sync_events, (a, b) => a.kind === b.kind && a.unix_ms === b.unix_ms);
+    if (d.session && Object.keys(d.session).length) {
+      const cur = storage.get('session', {});
+      storage.set('session', Object.assign({}, cur, d.session));
+    }
+    renderSavedPositions(); renderSavedOrients(); renderLandmarks(); renderCameras(); renderSync(); loadSession();
+    alert('Imported: ' + nPos + ' positions, ' + nOri + ' orientations, ' + nLm + ' landmarks, ' + nCam + ' cameras, ' + nEv + ' sync events');
+  }
+  document.getElementById('import-file').addEventListener('change', (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => importFullLog(String(rd.result));
+    rd.readAsText(f);
+    ev.target.value = '';
+  });
+  document.getElementById('import-paste').addEventListener('click', () => {
+    const t = prompt('Paste the full-log JSON from the other device:');
+    if (t) importFullLog(t);
+  });
+
+  renderCameras();
+  renderSync();
+  loadSession();
 
   // Initial render
   renderSavedPositions();
